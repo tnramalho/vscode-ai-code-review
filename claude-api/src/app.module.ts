@@ -1,38 +1,26 @@
 import { join } from 'path';
 
 import {
-  CacheModule,
   MiddlewareConsumer,
   Module,
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
-import { ConfigModule, ConfigType } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 
-import { TypeOrmModule } from '@nestjs/typeorm';
-
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { PUBLIC_FOLDER_NAME, PUBLIC_URL } from './common/constants';
+import { authConfig } from './config/auth.config';
+import { emailConfig } from './config/email.config';
+import { githubConfig } from './config/github.config';
 import { jwtConfig } from './config/jwt.config';
 import { loggerSentryConfig } from './config/logger-sentry.config';
 import { loggerConfig } from './config/logger.config';
 import sampleConfig from './config/sample.config';
 import { typeormConfig } from './config/typeorm.config';
-import { AuthModule } from './modules/auth/auth.module';
 import { ApiKeyMiddleware } from './modules/auth/midleware/api-key.middleware';
-import { LoggerModule } from './modules/logger/logger.module';
-import { RoleModule } from './modules/role/role.module';
-import { UploadModule } from './modules/upload/upload.module';
-import { UserRoleModule } from './modules/user-role/user-role.module';
-import { UserModule } from './modules/user/user.module';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { PUBLIC_FOLDER_NAME, PUBLIC_URL } from './common/constants';
-import { EmailModule } from './modules/email/email.module';
-import { emailConfig } from './config/email.config';
-import { authConfig } from './config/auth.config';
-import { HandlebarEmailModule } from './modules/handlebar-email/handlebar-email.module';
-import { HandlebarEmailService } from './modules/handlebar-email/handlebar-email.service';
-import { githubConfig } from './config/github.config';
-import { FederatedModule } from './modules/federated/federated.module';
 import { ClaudeApiModule } from './modules/claude-api/claude-api.module';
+import { LoggerModule } from './modules/logger/logger.module';
 @Module({
   imports: [
     ServeStaticModule.forRoot({
@@ -52,27 +40,8 @@ import { ClaudeApiModule } from './modules/claude-api/claude-api.module';
         sampleConfig,
       ],
     }),
-    TypeOrmModule.forRootAsync({
-      inject: [typeormConfig.KEY],
-      useFactory: async (config: ConfigType<typeof typeormConfig>) => config,
-    }),
-    CacheModule.register({
-      isGlobal: true,
-    }),
-    UserModule,
-    RoleModule,
-    UserRoleModule,
-    AuthModule,
+
     LoggerModule,
-    UploadModule,
-    EmailModule.registerAsync({
-      imports: [HandlebarEmailModule],
-      inject: [HandlebarEmailService],
-      useFactory: (emailService: HandlebarEmailService) => {
-        return emailService;
-      },
-    }),
-    FederatedModule,
     ClaudeApiModule,
   ],
   controllers: [],

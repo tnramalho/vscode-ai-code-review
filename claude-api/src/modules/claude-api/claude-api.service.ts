@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
 import { AI_PROMPT, Client, HUMAN_PROMPT } from '@anthropic-ai/sdk';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ClaudeApiService {
@@ -37,6 +37,24 @@ export class ClaudeApiService {
       Use a friendly language, give me suggestions of how to improve my code. 
       Please provider a score for each topic fo that link used for the repository
       give this context please provide feedback in the following github repository:
+      ${codeContext}
+    `;
+
+    const PROMPT_PROJECT_SUMMARY = `
+     We have code challenges for a Senior React Developer position. I would like for you to review the code, and provide an overall project overview, that can be used as context for prompts for an AI React code reviewer. I would like your response to be presented as a well structured markdown document. With the following secctions:
+     - Project Overview
+      - Component Structure
+      - Performance Optimizations
+      - Code Quality
+      - Defects or Bugs
+      - Code Readability & Style
+      - Overview:
+      -- A score for each category from 0 - 10. Acting as a Senior React developer, rate yourself from 0-10 for each category as if you had written this code.
+
+      Important be very critical and provide a lot of details, the goal is to provide a lot of information that the Code Reviewer can make the best decision possible.
+      
+      Code Challenge:
+     : ${codeContext}
     `;
 
     const PROMPT_LINK = `Please review the code for ${prompt} and provide feedback on code quality, readability, 
@@ -95,7 +113,7 @@ export class ClaudeApiService {
       PROMPT_SNIPPET, // 5
       PROMPT_EXPERT_CODE, // 6
     ];
-    return listPrompts[6];
+    return PROMPT_PROJECT_SUMMARY;
   }
 
   async codeReview(
@@ -112,6 +130,7 @@ export class ClaudeApiService {
       prompt: prompt,
       stop_sequences: [HUMAN_PROMPT],
       max_tokens_to_sample: 10000,
+      temperature: 0.3,
       //model: 'claude-v1',
       model: 'claude-v1.3-100k',
     });
