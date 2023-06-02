@@ -53,6 +53,7 @@ function getCodeFromProject(projectPath: string): string {
       fileExtension === ".ts"
     ) {
       const fileContent = fs.readFileSync(filePath, "utf8");
+      code += `filePath : ${filePath}` + "\n\n";
       code += fileContent + "\n\n";
     }
   };
