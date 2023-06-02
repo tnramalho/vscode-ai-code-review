@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    context.subscriptions.push(disposable, submitFileDisposable, submitProjectDisposable);
+    context.subscriptions.push(disposable, submitFileDisposable);
 }
 
 function getCodeFromProject(folderPath: string): string {

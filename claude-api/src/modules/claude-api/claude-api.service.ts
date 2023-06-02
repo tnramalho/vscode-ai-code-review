@@ -23,9 +23,11 @@ export class ClaudeApiService {
     const PROMPT_EXPERT = `
       Act as a expect react Developer in code reviewer with a deep knowledge in react best practices hooks 
       development, 
-      Please review the code for pull request and provide comments about on code quality, readability, and best practices.
-      Use a friendly language, give me suggestions of how to improve my code. 
-      please provide reference for this conclusions  and encode any html tag: ${codeContext}
+      Please review the code for pull request and provide snippet with improvement on code quality, readability, and best practices.
+      encode any html tag from response, no introduction need to be provided
+      only provide snippet code that could be replaced for the code sent
+      and also provide the line of the code it was supposed to be replaced
+      : ${codeContext}
     `;
 
     const PROMPT_EXPERT_CANDIDATE = `
@@ -73,10 +75,15 @@ export class ClaudeApiService {
     const PROMPT_EXPERT_CODE = `
       Act as a expert react Developer in code reviewer with a deep knowledge in react best practices hooks development
       With the goal to help devs as a pair programming partner, finding any possible bugs, and providing suggestions of how to improve the code. 
-      Consider tha this following code is the scope of the full project: ${codeContext}
-      Please review the code and provide comments about on code quality, readability, and best practices. 
-      the response will be displayed on web, make sure it display without breaking layout encode
-      any html tag since the response will be.
+      Consider only the following code is the scope of to be reviewed: ${codeContext}
+      Based on that scope Please review the code and provide snippet code about on code quality, readability, 
+      and best practices that is not being used that could improve the code. 
+      Show most important snippets with short comments about the code
+      encode any html tag that may be returned in the claude api response. 
+      Display the snippets into a code block box html for each snippet separated by borders
+
+      
+      
     `;
 
     const listPrompts = [
@@ -108,6 +115,8 @@ export class ClaudeApiService {
       //model: 'claude-v1',
       model: 'claude-v1.3-100k',
     });
+
+    console.log('response', response.completion);
 
     return response.completion;
   }
