@@ -1,39 +1,26 @@
 import * as fs from "fs";
-import * as http from "http";
-import * as MarkdownIt from "markdown-it";
+
 import * as path from "path";
 import * as vscode from "vscode";
+import { WebviewPanel } from "vscode";
+
+interface ResourcePaths {
+  htmlPath: string;
+  styleCss: string;
+  interopJs: string;
+  flutterJs: string;
+  basePath: string;
+  codePayload: string;
+}
 
 export function activate(context: vscode.ExtensionContext) {
-  let disposable = vscode.commands.registerCommand(
-    "claude-ai-code-review.codeReview",
-    () => {
-      const editor = vscode.window.activeTextEditor;
-      if (editor) {
-        const code = editor.document.getText(editor.selection);
-        sendCodeReviewRequest(code);
-      }
-    }
-  );
-
-  let submitFileDisposable = vscode.commands.registerCommand(
-    "claude-ai-code-review.codeReviewFile",
-    () => {
-      const editor = vscode.window.activeTextEditor;
-      if (editor) {
-        const code = editor.document.getText();
-        sendCodeReviewRequest(code);
-      }
-    }
-  );
-
   let submitProjectDisposable = vscode.commands.registerCommand(
     "claude-ai-code-review.codeReviewProject",
     () => {
       const workspaceFolders = vscode.workspace.workspaceFolders;
       if (workspaceFolders) {
         const code = getCodeFromProject(workspaceFolders[0].uri.fsPath);
-        sendCodeReviewRequest(code);
+        showCodeReviewResponse(code, context);
       }
     }
   );
@@ -53,7 +40,7 @@ function getCodeFromProject(projectPath: string): string {
       fileExtension === ".ts"
     ) {
       const fileContent = fs.readFileSync(filePath, "utf8");
-      code += fileContent + "\n\n";
+      code += `# file path: ${filePath}\n` + fileContent + "\n\n";
     }
   };
 
@@ -77,94 +64,87 @@ function getCodeFromProject(projectPath: string): string {
   return code;
 }
 
-function sendCodeReviewRequest(code: string) {
-  const requestBody = JSON.stringify({
-    codeAsContext: code,
-    codeToReview: "",
-  });
-
-  const options = {
-    host: "localhost",
-    port: 3001,
-    path: "/claude-api/code-review",
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": requestBody.length.toString(),
-    },
-    timeout: 60000,
-  };
-
-  const request = http.request(options, (response) => {
-    let responseBody = "";
-    response.on("data", (chunk) => {
-      responseBody += chunk;
-    });
-    response.on("end", () => {
-      if (
-        response.statusCode &&
-        response.statusCode >= 200 &&
-        response.statusCode < 300
-      ) {
-        try {
-          const jsonResponse = JSON.parse(responseBody);
-          showCodeReviewResponse(jsonResponse.data);
-        } catch (error) {
-          vscode.window.showErrorMessage(
-            "Failed to parse the response from the API."
-          );
-        }
-      } else {
-        console.error(" error >>", response);
-        vscode.window.showErrorMessage(
-          `Request failed with status code ${response.statusCode}`
-        );
-      }
-    });
-  });
-
-  request.on("error", (error) => {
-    vscode.window.showErrorMessage(
-      `Failed to send the code review request: ${error.message}`
-    );
-  });
-
-  request.write(requestBody);
-  request.end();
-}
-function showCodeReviewResponse(response: string) {
+function showCodeReviewResponse(
+  code: string,
+  context: vscode.ExtensionContext
+) {
   const panel = vscode.window.createWebviewPanel(
     "codeReviewPanel",
     "Code Review Response",
     vscode.ViewColumn.Beside,
-    {}
+    {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.file(path.join(__dirname, ".."))],
+      retainContextWhenHidden: true,
+    }
   );
 
   // Load the HTML content for the webview
-  panel.webview.html = getWebviewContent(response);
+  panel.webview.html = getWebviewContent(code, context, panel);
+
+  setTimeout(() => {
+    console.warn("code", code);
+    panel.webview.postMessage(code);
+  }, 5000);
 }
 
-function getWebviewContent(response: string) {
-  const md = new MarkdownIt();
-  const formattedResponse = md.render(response);
+function getWebviewContent(
+  code: string,
+  context: vscode.ExtensionContext,
+  panel: WebviewPanel
+) {
+  const { webview } = panel;
 
-  return `
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <style>
-                  body {
-                      margin: 0;
-                      padding: 20px;
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                      line-height: 1.4;
-                  }
-              </style>
-          </head>
-          <body>
-              <h1>Code Review Response:</h1>
-              ${formattedResponse}
-          </body>
-          </html>
-      `;
+  const htmlPathUri = vscode.Uri.file(
+    path.join(context.extensionPath, "src", "index.html")
+  );
+  const htmlPath = htmlPathUri.with({ scheme: "vscode-resource" });
+
+  let basePathUri = vscode.Uri.file(
+    context.asAbsolutePath(path.join("src", "web"))
+  );
+
+  const basePath = webview.asWebviewUri(basePathUri).toString();
+
+  let interopJsPathUri = vscode.Uri.file(
+    context.asAbsolutePath(path.join("src", "web", "js", "js-interop.js"))
+  );
+  const interopJsPath = webview.asWebviewUri(interopJsPathUri).toString();
+
+  let flutterJsPathUri = vscode.Uri.file(
+    context.asAbsolutePath(path.join("src", "web", "flutter.js"))
+  );
+  const flutterJsPath = webview.asWebviewUri(flutterJsPathUri).toString();
+
+  let styleCssPathUri = vscode.Uri.file(
+    context.asAbsolutePath(path.join("src", "web", "css", "style.css"))
+  );
+  const styleCssPath = webview.asWebviewUri(styleCssPathUri).toString();
+
+  const resourcePaths: ResourcePaths = {
+    htmlPath: htmlPath.fsPath,
+    styleCss: styleCssPath.toString(),
+    interopJs: interopJsPath.toString(),
+    flutterJs: flutterJsPath.toString(),
+    basePath: basePath.toString(),
+    codePayload: code,
+  };
+
+  return _renderWebviewContent(resourcePaths);
+}
+
+function _renderWebviewContent(paths: ResourcePaths) {
+  console.log(`Loading webview content from ${paths.htmlPath}`);
+
+  const html = fs.readFileSync(paths.htmlPath, "utf8");
+  const variables = {
+    paths,
+  };
+
+  const webviewHtml = new Function(
+    "variables",
+    `with (variables) { return \`${html}\`; }`
+  )(variables);
+
+  return webviewHtml;
 }
