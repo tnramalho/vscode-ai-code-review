@@ -84,9 +84,8 @@ function showCodeReviewResponse(
   panel.webview.html = getWebviewContent(code, context, panel);
 
   setTimeout(() => {
-    console.warn("code", code);
     panel.webview.postMessage(code);
-  }, 5000);
+  }, 7000);
 }
 
 function getWebviewContent(
